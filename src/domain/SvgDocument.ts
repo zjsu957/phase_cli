@@ -2,11 +2,15 @@ import { EditorError } from './EditorError.js';
 import { Group } from './Group.js';
 import { NumericValue } from './NumericValue.js';
 import type { Shape } from './Shape.js';
+import { SvgPresentation } from './SvgPresentation.js';
 
 export class SvgDocument {
   private canvasWidth: number;
   private canvasHeight: number;
   private roots: Shape[] = [];
+  private coordinates: string | undefined;
+  private readonly presentation = new SvgPresentation();
+  private svgRootId: string | undefined;
 
   constructor(width = 800, height = 600) {
     this.canvasWidth = NumericValue.positive(width, 'canvas width');
@@ -15,12 +19,31 @@ export class SvgDocument {
   get width(): number { return this.canvasWidth; }
   get height(): number { return this.canvasHeight; }
   get children(): readonly Shape[] { return [...this.roots]; }
+  get viewBox(): string { return this.coordinates ?? '0 0 ' + this.width + ' ' + this.height; }
+  get rootAttributes(): ReadonlyMap<string, string> { return this.presentation.attributes; }
+  get elementCount(): number { return this.flatten(this.roots).length; }
+  get rootId(): string | undefined { return this.svgRootId; }
+  setRootId(id: string): void {
+    if (!id || /\s/u.test(id)) throw new EditorError('id must be non-empty and contain no whitespace');
+    this.ensureNewId(id);
+    this.svgRootId = id;
+  }
+  setViewBox(value: string): void {
+    const parts = value.trim().split(/[\s,]+/u);
+    if (parts.length !== 4) throw new EditorError('viewBox must contain four numbers');
+    const numbers = parts.map(part => NumericValue.parse(part, 'viewBox'));
+    NumericValue.positive(numbers[2]!, 'viewBox width');
+    NumericValue.positive(numbers[3]!, 'viewBox height');
+    this.coordinates = numbers.join(' ');
+  }
+  importPresentation(name: string, value: string): void { this.presentation.set(name, value); }
 
   resize(width: number, height: number): void {
     NumericValue.positive(width, 'canvas width');
     NumericValue.positive(height, 'canvas height');
     this.canvasWidth = width;
     this.canvasHeight = height;
+    this.coordinates = undefined;
   }
   private findOptional(id: string): Shape | undefined {
     for (const shape of this.roots) {
@@ -48,7 +71,7 @@ export class SvgDocument {
     return undefined;
   }
   private ensureNewId(id: string): void {
-    if (this.findOptional(id)) throw new EditorError('id already exists: ' + id);
+    if (this.rootId === id || this.findOptional(id)) throw new EditorError('id already exists: ' + id);
   }
   add(shape: Shape, parentId?: string): void {
     for (const node of this.flatten([shape])) this.ensureNewId(node.id);
@@ -131,6 +154,9 @@ export class SvgDocument {
   clone(): SvgDocument {
     const result = new SvgDocument(this.width, this.height);
     result.roots = this.roots.map(shape => shape.clone());
+    result.coordinates = this.coordinates;
+    result.svgRootId = this.svgRootId;
+    for (const [name, value] of this.rootAttributes) result.importPresentation(name, value);
     return result;
   }
   restore(snapshot: SvgDocument): void {
@@ -138,5 +164,8 @@ export class SvgDocument {
     this.canvasWidth = copy.width;
     this.canvasHeight = copy.height;
     this.roots = copy.roots;
+    this.coordinates = copy.coordinates;
+    this.svgRootId = copy.svgRootId;
+    this.presentation.replace(copy.rootAttributes);
   }
 }

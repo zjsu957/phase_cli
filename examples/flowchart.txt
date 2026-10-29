@@ -1,4 +1,4 @@
-# Lab 6.1 version A, stopping before SVG file I/O (next milestone).
+# Lab 6.1 version A, including actual SVG export and import.
 init 800 600
 create g flowchart
 create g node1 in flowchart
@@ -15,3 +15,7 @@ undo
 tree node2
 set process-label text "处理数据 v2"
 show process-label
+save flowchart.svg
+undo
+read flowchart.svg
+tree

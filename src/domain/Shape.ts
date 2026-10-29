@@ -1,11 +1,12 @@
 import { EditorError } from './EditorError.js';
 import { NumericValue } from './NumericValue.js';
+import { SvgPresentation } from './SvgPresentation.js';
 import type { ShapeVisitor } from './ShapeVisitor.js';
 import type { Group } from './Group.js';
 
 export abstract class Shape {
   private readonly shapeId: string;
-  private readonly appearance = new Map<string, string>();
+  private readonly appearance = new SvgPresentation();
 
   protected constructor(id: string) {
     if (!id || /\s/u.test(id)) throw new EditorError('id must be non-empty and contain no whitespace');
@@ -15,8 +16,8 @@ export abstract class Shape {
   abstract get tag(): string;
   get label(): string { return this.tag + '#' + this.id; }
   get children(): readonly Shape[] { return []; }
-  get styles(): ReadonlyMap<string, string> { return new Map(this.appearance); }
-  get attributes(): ReadonlyMap<string, string> { return new Map(this.appearance); }
+  get styles(): ReadonlyMap<string, string> { return this.appearance.attributes; }
+  get attributes(): ReadonlyMap<string, string> { return this.appearance.attributes; }
 
   find(id: string): Shape | undefined { return this.id === id ? this : undefined; }
   findParent(_id: string): Group | undefined { return undefined; }
@@ -33,8 +34,9 @@ export abstract class Shape {
     }
   }
   protected setOwnAttribute(_attr: string, _value: string): boolean { return false; }
+  importPresentation(attr: string, value: string): void { this.appearance.set(attr, value); }
   protected copyAppearanceTo<T extends Shape>(target: T): T {
-    for (const [name, value] of this.appearance) target.set(name, value);
+    for (const [name, value] of this.appearance.attributes) target.importPresentation(name, value);
     return target;
   }
   abstract move(dx: number, dy: number): void;

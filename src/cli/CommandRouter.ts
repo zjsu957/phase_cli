@@ -22,8 +22,8 @@ export class CommandRouter {
   constructor(private readonly editor = new Editor()) {
     this.usages = new Map([
       ['init', 'init [w] [h]'],
-      ['read', 'read <file.svg> [pending: SVG file I/O]'],
-      ['save', 'save [file.svg] [pending: SVG file I/O]'],
+      ['read', 'read <file.svg>'],
+      ['save', 'save [file.svg]'],
       ['canvas', 'canvas [w] [h]'],
       ['create', 'create <rect|circle|ellipse|line|text|g> <id> [params...] [in <containerId>]'],
       ['delete', 'delete <id>'],
@@ -43,8 +43,8 @@ export class CommandRouter {
     ]);
     this.handlers = new Map([
       ['init', args => this.init(args)],
-      ['read', args => { this.args('read', args).count(1); return this.editor.pendingFileCommand(false); }],
-      ['save', args => { this.args('save', args).count(0, 1); return this.editor.pendingFileCommand(); }],
+      ['read', args => { const a = this.args('read', args).count(1); return this.editor.read(a.text(0)); }],
+      ['save', args => { this.args('save', args).count(0, 1); return this.editor.save(args[0]); }],
       ['canvas', args => this.canvas(args)],
       ['create', args => this.create(args)],
       ['delete', args => {

@@ -115,10 +115,10 @@ describe('CLI editing and history', () => {
     cli.execute('undo');
     expect(cli.execute('tree')).toBe('svg (800x600)');
   });
-  it('reports unfinished file I/O without changing document or history', () => {
+  it('reports missing store configuration without changing document or history', () => {
     cli.execute('create g g');
-    expect(cli.execute('save demo.svg')).toContain('not implemented');
-    expect(cli.execute('read other.svg')).toContain('not implemented');
+    expect(cli.execute('save demo.svg')).toContain('document storage is not configured');
+    expect(cli.execute('read other.svg')).toContain('document storage is not configured');
     cli.execute('undo');
     expect(cli.execute('tree')).toBe('svg (800x600)');
   });

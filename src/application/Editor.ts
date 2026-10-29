@@ -3,15 +3,20 @@ import { SvgDocument } from '../domain/SvgDocument.js';
 import { CommandHistory } from './CommandHistory.js';
 import { DocumentPresenter } from './DocumentPresenter.js';
 import type { EditCommand } from './commands/EditCommand.js';
+import type { DocumentStore } from './ports/DocumentStore.js';
 
 export class Editor {
   private document: SvgDocument | undefined;
   private readonly history = new CommandHistory();
   private readonly presenter = new DocumentPresenter();
+  private currentPath: string | undefined;
+
+  constructor(private readonly store?: DocumentStore) {}
 
   init(width = 800, height = 600): string {
     const next = new SvgDocument(width, height);
     this.document = next;
+    this.currentPath = undefined;
     this.history.barrier();
     return 'canvas ' + width + 'x' + height + ' created';
   }
@@ -33,8 +38,26 @@ export class Editor {
     }
     return 'canvas ' + document.width + 'x' + document.height;
   }
-  pendingFileCommand(needsDocument = true): never {
-    if (needsDocument) this.requireDocument();
-    throw new EditorError('SVG file I/O is not implemented in this milestone');
+  read(path: string): string {
+    const loaded = this.documentStore().read(path);
+    const next = loaded.document;
+    const result = [...loaded.warnings, 'read ' + path + ' (' + next.elementCount + ' elements)'].join('\n');
+    this.document = next;
+    this.currentPath = path;
+    this.history.barrier();
+    return result;
+  }
+  save(path?: string): string {
+    const document = this.requireDocument();
+    const destination = path ?? this.currentPath;
+    if (!destination) throw new EditorError("no file path. use 'save <file.svg>' first");
+    this.documentStore().save(destination, document);
+    this.currentPath = destination;
+    this.history.barrier();
+    return 'saved to ' + destination + ' (' + document.elementCount + ' elements)';
+  }
+  private documentStore(): DocumentStore {
+    if (!this.store) throw new EditorError('document storage is not configured');
+    return this.store;
   }
 }

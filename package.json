@@ -1,6 +1,6 @@
 {
   "name": "svg-editor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lab1 Phase 1: object-oriented SVG CLI editor",
   "private": true,
   "type": "module",
@@ -18,5 +18,8 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.12"
   }
 }
