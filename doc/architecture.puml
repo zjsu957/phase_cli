@@ -1,0 +1,39 @@
+@startuml
+title SVG Editor — 第一版依赖方向
+skinparam componentStyle rectangle
+component "main.ts\n对象组装" as Main
+package "cli/" {
+  component "Repl\n终端与流 IO" as Repl
+  component "Tokenizer / Arguments\nCommandRouter" as Cli
+}
+package "application/" {
+  component "Editor / CommandHistory" as App
+  component "commands/\nEditCommand / SnapshotCommand\n具体编辑命令" as Commands
+  component "DocumentPresenter\nShapeVisitor 实现" as Presenter
+}
+package "domain/" {
+  component "SvgDocument\nShape / GeometryShape\nRect / Circle / Ellipse / Line / Text / Group" as Model
+  component "ShapeFactory" as Factory
+  component "ShapeVisitor 接口" as Visitor
+  component "EditorError / NumericValue" as Values
+}
+Main --> Repl
+Repl --> Cli
+Cli --> App
+Cli --> Commands
+Cli --> Values
+App --> Commands
+App --> Presenter
+App --> Model
+Commands --> Factory
+Commands --> Model
+Presenter --> Model
+Presenter ..|> Visitor
+Factory --> Model
+Model --> Visitor
+Model --> Values
+note bottom of Main
+  下一轮新增 application/ports 与 infrastructure/svg、infrastructure/files；
+  当前不创建没有实现的接口或空目录。
+end note
+@enduml
