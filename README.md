@@ -148,7 +148,6 @@ CLI 的 set 白名单仍遵循 lab，不额外开放 transform/font-size 等属�
     npm.cmd run smoke:dist
     npm.cmd start
 
-课程具体截止时间未包含在 lab 文件中，提交是否按时须以课程通知为准。
 当前完成五轮；后续如发现实际问题，可继续第六轮修复并记录，更新最终标签需另行处理。
 
 架构方案、实现约定、协作记录及质量保证见 [doc/README.md](doc/README.md)。
