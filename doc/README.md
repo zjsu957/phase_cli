@@ -2,10 +2,10 @@
 
 ## 当前里程碑
 
-2026-10-30：第三版修复输入边界，统一命令语法与帮助信息。
+2026-10-30：第四版完成 19 条命令的进程验收与架构检查，并修复验收发现的三个问题。
 当前完成文档初始化/尺寸修改、六种图形、全部编辑/显示命令、撤销重做、
 SVG 导入导出、自动补 id、文件路径与文档命令历史屏障。
-最终交付仍需确认远程推送、截止日期和 final tag。
+版本为 0.4.0；第五轮继续干净环境复现和最终交付，最终 tag 需在课程截止时间前创建。
 
 ### 迭代安排
 
@@ -13,8 +13,8 @@ SVG 导入导出、自动补 id、文件路径与文档命令历史屏障。
 |---|---|---|
 | 第 1 轮 | CLI、领域模型、Command/Composite 与撤销重做 | 已提交 f0bf527 |
 | 第 2 轮 | SVG 导入导出、补 id、文件原子保存与路径管理 | 已提交 7b51872，已核实远程存在 |
-| 第 3 轮 | 数值/XML/引号边界、命令定义与帮助一致性 | 本轮，独立提交 |
-| 第 4 轮 | 对照 lab 完整验收、架构依赖检查与发现问题的修复 | 计划 |
+| 第 3 轮 | 数值/XML/引号边界、命令定义与帮助一致性 | 已提交 8b3e305，已核实远程存在 |
+| 第 4 轮 | 对照 lab 完整验收、架构依赖检查与发现问题的修复 | 本轮，独立提交；182 项测试、架构检查及构建通过 |
 | 第 5 轮 | 干净环境复现、使用/提交文档、远程与最终版本交付 | 计划 |
 | 第 6 轮（如需） | 解决验收或用户试用暴露的额外问题并复验 | 按实际问题决定 |
 
@@ -35,7 +35,8 @@ SVG 导入导出、自动补 id、文件路径与文档命令历史屏障。
 | src/infrastructure/svg | SvgParser / SvgSerializer，隔离 XML 解析与序列化 |
 | src/cli | 保留引号信息的分词、CommandDefinition 统一语法/参数检查/动作、命令路由、终端与脚本输入 |
 | src/main.ts | 启动并组装 REPL 与标准输入输出 |
-| tests | 分词、命令、树结构、历史、失败原子性及流输入的验证 |
+| tests | 分词、命令、树结构、历史、失败原子性、流输入及真实 CLI 子进程验收 |
+| scripts | 开发时通过 AST 检查模块依赖、字段封装、类文件名、tag 分派与运行时依赖环 |
 | examples | 可回放的 lab 流程图命令序列 |
 
 组件图的 PlantUML 源文件为 [architecture.puml](architecture.puml)。
@@ -90,6 +91,13 @@ Node readline/stream 的终端 IO 位于 CLI/启动入口；
 文件 IO 位于 infrastructure/files。domain 和 application 不导入 Node IO，
 XML 库仅在 infrastructure/svg 使用。
 
+第四版将上述规则落实到 scripts/ArchitectureCheck.ts，逐条检查生产源码的
+import/export（包括类型引用）、允许的 Node/XML 库位置和运行时依赖环。
+纯类型循环允许存在，但仍须满足依赖方向。开发脚本使用 @babel/parser 读取 AST，
+该库仅为开发依赖，生产源码不引用脚本或 Babel。架构图单独列出开发检查。
+检查器还覆盖类文件名与字段封装、常见 tag 比较/switch 写法及动态加载，
+它是防止已声明规则退化的工具，不替代人工设计判断。
+
 ### 变化点假设
 
 | 可能变化 | 当前应对/暂不扩展的原因 |
@@ -125,6 +133,8 @@ XML 库仅在 infrastructure/svg 使用。
 - SVG 后绘制的同级节点覆盖先绘制节点，因此 front 移到同级列表末尾，
   back 移到开头。
 - 编辑命令只在成功后入栈及清空 redo；失败不改变文档与历史。
+- 同一 SnapshotCommand 实例成功执行后不允许再次 execute，避免覆盖历史中引用的快照；
+  失败执行不消费实例，正常 redo 使用原有快照恢复。
 - 成功 init/canvas 修改尺寸建立新历史基线，并阻止 undo/redo；
   下一次成功编辑解禁，但不能回到上一条文档命令之前。
   canvas 查询和 tree/show/help 不影响历史。
@@ -144,6 +154,8 @@ XML 库仅在 infrastructure/svg 使用。
 
 - 保存为 UTF-8 XML，包含 SVG 命名空间、width/height/viewBox；
   text 内容使用 XML 子文本，交由 XML 库转义文本和属性。
+- 解析采用 XML 1.0 行尾规则，仅将裸 CR/CRLF 变成 LF；NEL/U+2028 正常保留。
+  通过字符引用读入的 CR 在保存时继续编码成字符引用，避免下一次读取变成 LF。
 - 导入只支持内核六种图形。几何属性可以省略，按 SVG 默认值 0 处理，
   允许数值或 px；宽高省略时优先使用 viewBox 尺寸，否则使用编辑器默认 800×600。
 - 原有 viewBox、根样式、可选根 id、常用字体/展示属性与 data-* 保留。
@@ -235,6 +247,34 @@ XML 库仅在 infrastructure/svg 使用。
    回放 round3-validation.txt 得到四条预期错误，错误后 redo、tree、show 正常；
    在隔离目录回放原流程图，成功保存并读回 8 个元素。
 
+### 第四版
+
+1. 对照 lab 建立 19 条命令与通用约束的验收矩阵，记录在
+   [acceptance.md](acceptance.md)。使用真实 Node 子进程运行 CLI，既核对输出，
+   也检查落盘 SVG；测试在独立临时目录执行，不覆盖用户已有文件。
+2. XML 往返验收发现字符引用 &#13; 会在第二次读取时变成 LF，
+   NEL/U+2028 也被改写。先添加回归测试并观察失败，再查明 XML 库默认行尾规则
+   与 XML 1.0 不一致；显式限制解析归一化，并在输出时保留 CR 字符引用。
+3. 历史验收发现同一命令对象执行两次会覆盖第一次的快照。
+   先写失败回归，再拒绝重复 execute；仍允许失败实例重试。
+   新增长序列验证，每次 undo/redo 都核对整个文档状态，覆盖嵌套、分组、重挂接与排序。
+4. 架构检查需要真实语法树，不能靠字符串搜索判断 import 或字段。
+   当前 TypeScript 7 未提供 createSourceFile，因此选择仅开发依赖 @babel/parser。
+   检查 43 个生产源码文件，并用故意违规的内存代码验证检查器能发现问题。
+   首次检查将 this.tag + '#' 误认为按类型分派，改为只匹配相等比较和 switch，
+   同时补充字符串/注释不应误报的样例。
+5. 真实进程测试最初用不包含 svg> 判断提示符，却误匹配 help 中的 <file.svg>。
+   核对真实输出后将断言限制为行首提示符，保留管道模式输出约束。
+6. npm.cmd run check 全部通过：11 个测试文件、182 项测试，另有类型检查、
+   架构检查与构建。编译后的 dist/main.js 在独立目录回放流程图，
+   仅出现保存屏障的一条预期错误，成功保存并读回 8 个元素。
+7. 此前 Computer Use 管道不可用，第二、三版未完成浏览器视觉检查。
+   本轮使用 Edge 无界面模式和独立用户数据目录渲染实际产物，已查看截图，
+   确认两个彩色节点、中文文字与连线正常。SVG 与截图保存在 doc/qa/，
+   不把单个示例的显示正常扩展为所有外部 SVG 的保真结论。
+8. 保留完整快照的内存代价和本地坐标编辑约定；跨带变换/继承样式容器的
+   重挂接不保证外观不变。第五轮做干净环境复现与最终交付，本轮不创建 final tag。
+
 ## 一致性自查
 
 ### 模块划分
@@ -246,6 +286,8 @@ infrastructure/svg；新增 ShapeDefinition 和 SvgPresentation 用于复用构�
 以上新增目录和类型已同步修订架构图与模块说明。
 第三版增加 cli/CommandDefinition、cli/CommandToken 和 domain/XmlValue；
 均为一类一文件。原有端口方向和图形行为多态保持一致，架构图同步更新。
+第四版新增 scripts/ 和三份验收测试，均属于开发验证；生产模块边界保持一致。
+XML 与历史修复分别位于原有适配器和命令基类，未新增运行时层次或依赖方向。
 
 ### 依赖方向
 
@@ -258,14 +300,18 @@ infrastructure/svg；新增 ShapeDefinition 和 SvgPresentation 用于复用构�
 - 命令分发、图形工厂两处名字分派保留，已列为重构项。
 - 第三版 help 通过应用层获得图形语法，CLI 仍只直接引用允许的领域错误/数值校验。
   XmlValue 为纯领域值校验，不引入 XML 库或文件系统依赖。
+- 第四版 AST 检查验证 43 个生产源码文件未违反已声明规则、没有运行时依赖环。
+  检查器自身的解析依赖位于 scripts；类型检查覆盖脚本，构建只包含 src。
 
 ## 质量保证手段
 
-- npm run typecheck：严格类型检查，包括测试源码。
+- npm run typecheck：严格类型检查，包括测试与开发脚本源码。
 - npm test：验证分词、六种图形的创建/编辑、Composite 递归、结构顺序、
   撤销重做、屏障及失败后保留 redo。包含子孙处理过程中数值溢出的原子性场景。
 - npm run build：编译为 dist/main.js，检查实际 Node 入口。
-- npm run check：依次执行类型检查、测试、构建，任一步失败则终止。
+- npm run check:architecture：扫描生产源码 AST，检查依赖、封装与运行时环。
+- npm run test:acceptance：集中运行真实进程、长历史序列及架构规则测试。
+- npm run check：依次执行类型检查、架构检查、测试、构建，任一步失败则终止。
 - examples/flowchart.txt：回放 lab 6.1 版本 A，包含实际保存、历史屏障和读回。
 - 流式 REPL 测试：覆盖 CRLF、中文、错误后继续、EOF 前最后一行无换行。
 - 第一版：4 个测试文件、50 项测试全部通过；类型检查与构建通过；
@@ -273,8 +319,8 @@ infrastructure/svg；新增 ShapeDefinition 和 SvgPresentation 用于复用构�
 - 第二版：6 个测试文件、91 项测试全部通过；类型检查与构建通过。
   XML 往返测试覆盖六种图形、特殊字符、空文本、层级、元数据、viewBox 与 id。
   实际编译入口成功导出 flowchart.svg 并读回 8 个元素。
-- 自动浏览器视觉检查未完成：Computer Use 原生管道不可用，重试及重置后仍失败。
-  未把文件成功导出和 XML 往返等同于已经完成浏览器视觉验证。
+- 第二、三版自动浏览器视觉检查未完成：Computer Use 原生管道不可用，重试及重置后仍失败。
+  当时未把文件成功导出和 XML 往返等同于已经完成浏览器视觉验证。
 - 第三版新增 tests/InputValidation.test.ts、tests/CommandSyntax.test.ts，
   验证错误输入保留文档/redo、合法科学计数法/emoji、usage 与 help 一致。
   examples/round3-validation.txt 为可手工回放的边界示例，四条错误为预期输出。
@@ -282,6 +328,10 @@ infrastructure/svg；新增 ShapeDefinition 和 SvgPresentation 用于复用构�
   两份脚本均通过编译入口回放；流程图导出放在 .npm-cache 下的独立 QA 目录，
   避免覆盖用户现有的 flowchart.svg。
 
+- 第四版结果：11 个测试文件、182 项测试全部通过；43 个生产文件通过架构检查，
+  类型检查与构建通过。真实 CLI 子进程覆盖 19 条命令，编译入口另行回放流程图。
+  Edge 实际渲染截图已查看，产物与矩阵见 [第四轮验收记录](acceptance.md)。
+
 远程已配置为 https://github.com/zjsu957/phase_cli.git，
-第三轮开始时已核实远程存在第一、二版。后续提交需分别推送验证；
+第四轮开始时已核实远程存在前三版。后续提交需分别推送验证；
 final tag 只在最终验收完成时创建。

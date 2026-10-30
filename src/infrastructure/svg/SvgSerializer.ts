@@ -25,7 +25,9 @@ export class SvgSerializer implements ShapeVisitor<Element> {
     if (document.rootId !== undefined) this.attribute(root, 'id', document.rootId);
     for (const [name, value] of document.rootAttributes) this.attribute(root, name, value);
     for (const shape of document.children) root.appendChild(shape.accept(this));
-    return '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(this.xml) + '\n';
+    // Literal CR would be normalized to LF on the next XML parse. Character references survive.
+    const body = new XMLSerializer().serializeToString(this.xml).replace(/\r/gu, '&#13;');
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + body + '\n';
   }
   private attribute(element: Element, name: string, value: string): void {
     element.setAttribute(name, XmlValue.validate(value));

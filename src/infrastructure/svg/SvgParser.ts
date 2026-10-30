@@ -15,7 +15,11 @@ export class SvgParser {
     XmlValue.validate(source);
     let xml;
     try {
-      xml = new DOMParser({ onError: onWarningStopParsing }).parseFromString(source, 'image/svg+xml');
+      xml = new DOMParser({
+        onError: onWarningStopParsing,
+        // The generated documents declare XML 1.0; NEL and U+2028 are ordinary text.
+        normalizeLineEndings: text => text.replace(/\r\n?/gu, '\n'),
+      }).parseFromString(source, 'image/svg+xml');
     } catch {
       throw new EditorError('invalid SVG: malformed XML');
     }

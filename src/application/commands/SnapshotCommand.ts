@@ -8,6 +8,7 @@ export abstract class SnapshotCommand implements EditCommand {
   private summary = '';
 
   execute(document: SvgDocument): string {
+    if (this.after) throw new EditorError('command has already been executed');
     const working = document.clone();
     const summary = this.apply(working);
     // Commit only after validation and mutation of the isolated working copy succeed.

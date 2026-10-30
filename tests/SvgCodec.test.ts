@@ -96,6 +96,23 @@ describe('SVG XML codec', () => {
     expect(result.find('c').attributes.get('text')).toBe('a < b & 开始');
   });
 
+  it('preserves character-reference carriage returns in text across repeated round trips', () => {
+    let document = parser.parse('<svg><text id="t">a&#13;b&#10;c&#9;d</text></svg>').document;
+    for (let iteration = 0; iteration < 3; iteration++) {
+      const xml = new SvgSerializer().serialize(document);
+      expect(xml).toContain('&#13;');
+      document = parser.parse(xml).document;
+      expect(document.find('t').attributes.get('text')).toBe('a\rb\nc\td');
+    }
+  });
+
+  it('uses XML 1.0 line-ending rules and preserves NEL and Unicode line separators', () => {
+    const text = 'a\u0085b\u2028c';
+    const document = parser.parse('<svg><text id="t">' + text + '</text></svg>').document;
+    expect(document.find('t').attributes.get('text')).toBe(text);
+    expect(parser.parse(new SvgSerializer().serialize(document)).document.find('t').attributes.get('text')).toBe(text);
+  });
+
   it.each([
     ['<svg><rect></svg>', 'malformed XML'],
     ['<svg><rect id=r/></svg>', 'malformed XML'],

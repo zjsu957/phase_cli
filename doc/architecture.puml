@@ -1,5 +1,5 @@
 @startuml
-title SVG Editor — 第三版依赖方向
+title SVG Editor — 第四版依赖方向与开发检查
 skinparam componentStyle rectangle
 component "main.ts\n对象组装" as Main
 package "cli/" {
@@ -52,4 +52,17 @@ Presenter ..|> Visitor
 Factory --> Model
 Model --> Visitor
 Model --> Values
+package "开发检查（不进入运行时）" {
+  component "scripts/ArchitectureCheck\nAST 依赖、封装、环检查" as Guard
+  component "@babel/parser\n仅开发依赖" as Babel
+  component "tests/\nCliProcess / HistorySequence\nArchitecture 与既有测试" as Tests
+}
+Guard --> Babel
+Tests ..> Guard : 验证规则与违规样例
+Tests ..> Main : 真实子进程验收
+note bottom of Guard
+  扫描 src 中 43 个生产文件，
+  检查文档声明的依赖方向；
+  不作为产品运行时组件。
+end note
 @enduml
