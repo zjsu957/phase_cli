@@ -25,11 +25,8 @@ export class CommandRouter {
         this.editor.init(a.length >= 1 ? a.number(0) : 800, a.length >= 2 ? a.number(1) : 600)),
       new CommandDefinition('read', '<file.svg>', 1, 1, a => this.editor.read(a.text(0))),
       new CommandDefinition('save', '[file.svg]', 0, 1, a => this.editor.save(a.all[0])),
-      new CommandDefinition('canvas', '[w] [h]', 0, 2, a => {
-        if (a.length === 0) return this.editor.canvas();
-        a.count(2);
-        return this.editor.canvas(a.number(0), a.number(1));
-      }),
+      new CommandDefinition('canvas', '[w] [h]', 0, 2, a =>
+        this.editor.canvas(a.length >= 1 ? a.number(0) : undefined, a.length >= 2 ? a.number(1) : undefined)),
       new CommandDefinition('create', '<type> <id> [params...] [in <containerId>]', 2, Infinity,
         a => this.create(a)),
       new CommandDefinition('delete', '<id>', 1, 1,

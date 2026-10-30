@@ -33,8 +33,8 @@ export class Editor {
   show(id: string): string { return this.presenter.show(this.requireDocument(), id); }
   canvas(width?: number, height?: number): string {
     const document = this.requireDocument();
-    if (width !== undefined && height !== undefined) {
-      document.resize(width, height);
+    if (width !== undefined || height !== undefined) {
+      document.resize(width ?? document.width, height ?? document.height);
       this.history.barrier();
       return 'canvas resized to ' + document.width + 'x' + document.height;
     }

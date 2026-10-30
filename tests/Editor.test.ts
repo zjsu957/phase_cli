@@ -65,7 +65,7 @@ describe('CLI editing and history', () => {
     ['create circle c 0 0 1 in r', 'not a container: r'],
     ['move missing 1 2', 'no such shape: missing'],
     ['move r 1', 'usage: move'],
-    ['canvas 400', 'usage: canvas'],
+    ['canvas 400 300 200', 'usage: canvas'],
     ['set r fill "unfinished', 'unterminated double quote'],
   ])('preserves document and redo after failure: %s', (command, error) => {
     cli.execute('create rect r 1 2 3 4');
@@ -90,6 +90,26 @@ describe('CLI editing and history', () => {
     cli.execute('undo');
     cli.execute('set r fill red');
     expect(cli.execute('redo')).toBe('error: nothing to redo');
+  });
+  it('accepts one canvas dimension, preserves height and starts a new history baseline', () => {
+    cli.execute('canvas 800 320');
+    cli.execute('create g scene');
+    expect(cli.execute('canvas 480')).toBe('canvas resized to 480x320');
+    expect(cli.execute('canvas')).toBe('canvas 480x320');
+    expect(cli.execute('undo')).toBe('error: undo not allowed after io command');
+    expect(cli.execute('redo')).toBe('error: undo not allowed after io command');
+    cli.execute('create g next');
+    cli.execute('undo');
+    expect(cli.execute('tree')).toBe('svg (480x320)\n└── g#scene');
+  });
+  it('preserves the document and redo after an invalid single canvas dimension', () => {
+    cli.execute('create g scene');
+    cli.execute('move scene 1 2');
+    cli.execute('undo');
+    const before = cli.execute('tree');
+    expect(cli.execute('canvas 0')).toBe('error: canvas width must be positive');
+    expect(cli.execute('tree')).toBe(before);
+    expect(cli.execute('redo')).not.toMatch(/^error:/u);
   });
   it('resets history after document changes and gives new edits a fresh baseline', () => {
     expect(cli.execute('undo')).toBe('error: undo not allowed after io command');

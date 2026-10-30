@@ -13,7 +13,7 @@ describe('command syntax, help and failed-command history', () => {
   });
 
   it.each([
-    'init 800 600 extra', 'read', 'save a.svg b.svg', 'canvas 800',
+    'init 800 600 extra', 'read', 'save a.svg b.svg', 'canvas 800 600 extra',
     'create', 'delete', 'move t 1', 'scale t 2 extra', 'set t text',
     'group new', 'ungroup', 'addto scene', 'front t extra', 'back',
     'tree t extra', 'show', 'help extra', 'undo extra', 'redo extra',

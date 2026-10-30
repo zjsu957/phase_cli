@@ -1,12 +1,17 @@
-# SVG Editor · 第四版 完整验收与架构检查
+# SVG Editor · 第五版 最终验收与交付
 
 TypeScript 面向对象实现的 Lab1 Phase 1 SVG 编辑器。
 支持从 CLI 编辑、保存 SVG、在浏览器预览，再读回继续编辑。
-第四版增加真实 CLI 进程验收和可执行架构检查，修复 XML 文本往返与命令实例复用问题。
+第五版对照 lab 逐项复核，补齐 canvas 单参数语法，并完成独立目录安装和运行验收。
 
 ## 启动与检查
 
-要求 Node.js 24+。以下命令在项目目录运行；Windows PowerShell 使用 npm.cmd。
+要求 Node.js 24.11.0 或更新版本、npm 和 Git。以下命令在项目目录运行；
+Windows PowerShell 使用 npm.cmd；macOS/Linux 使用 npm。
+
+    node --version
+    npm.cmd --version
+    git --version
 
     npm.cmd ci
     npm.cmd run cli
@@ -14,20 +19,34 @@ TypeScript 面向对象实现的 Lab1 Phase 1 SVG 编辑器。
     npm.cmd test
     npm.cmd run build
     npm.cmd run check
-    node dist/main.js
+    npm.cmd run smoke:dist
+    npm.cmd start
 
 交互模式显示 svg>，Ctrl+C 或 EOF 退出；脚本模式不输出提示符。
 升级代码后先退出旧 CLI，再执行 npm.cmd run cli，确保加载新版本代码。
 npm.cmd run check 会依次执行类型检查、架构检查、测试和构建，任一步失败就停止。
+npm.cmd start 运行编译后的 dist/main.js，第一次启动前需要 npm.cmd run build。
+smoke:dist 验证编译入口、真实文件往返与中文文件名，必须在构建之后运行。
+开发时使用 npm.cmd run cli，可直接运行 TypeScript 源码。
 
 单独运行第四版的验收与架构检查：
 
     npm.cmd run test:acceptance
     npm.cmd run check:architecture
 
-当前验证结果为 11 个测试文件、182 项测试通过，43 个生产源码文件通过架构检查。
+当前验证结果为 11 个测试文件、184 项测试通过，43 个生产源码文件通过架构检查。
 编译入口已回放流程图，导出的 SVG 已经 Edge 渲染并检查中文文字、节点和连线。
 完整的 19 条命令验收矩阵、修复说明及渲染截图见 [第四轮验收记录](doc/acceptance.md)。
+第五轮逐项核对结论与独立环境结果见 [最终复核报告](doc/final-review.md)。
+
+## 第五版的改进
+
+- canvas 无参数查询；仅传宽度时保留当前高度；传宽高时同时修改。
+  尺寸修改建立新的历史基线，失败不改变文档与历史。
+- package.json 声明 Node.js 最低版本 24.11.0，与开发依赖的要求一致。
+- 新增 start 和 smoke:dist；编译产物只需 XML 运行库，不需要 tsx、TypeScript 或 Vitest。
+- 已从不含 node_modules/dist 的独立源码副本重新安装、检查和构建；
+  并在另一独立目录仅安装生产依赖，验证编译入口和真实交互终端。
 
 ## 第四版的改进
 
@@ -40,6 +59,11 @@ npm.cmd run check 会依次执行类型检查、架构检查、测试和构建�
     Get-Content -LiteralPath .\examples\flowchart.txt -Encoding UTF8 | npm.cmd run cli
 
 脚本中 save 后的 undo 预期报错，用于演示文档命令的撤销屏障。
+Windows PowerShell 5.1 通过管道传入中文脚本前，先为当前终端设置 UTF-8：
+
+    $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
+也可以直接执行 npm.cmd run smoke:dist，由 Node 读取 UTF-8 示例并输入编译后的 CLI。
 
 ## 第三版的输入规则
 
@@ -110,13 +134,21 @@ CLI 的 set 白名单仍遵循 lab，不额外开放 transform/font-size 等属�
 - 已实现：init、read、save、canvas、六种图形的 create（含 in）、delete、move、scale、
   set、group、ungroup、addto、front、back、tree、show、help、undo、redo。
 - box 和插件机制属于后续阶段，不在本阶段范围内。
-- 前三版已核实上传至 [GitHub](https://github.com/zjsu957/phase_cli)；
-  后续迭代各自独立提交，是否已同步以 git push 的实际输出为准。
+- 五轮改动分别提交至 [GitHub](https://github.com/zjsu957/phase_cli)，不覆盖早期提交。
 
-## 后续迭代
+## 交付与复现
 
-当前为第 4 轮，完整需求验收与架构检查已执行。第 5 轮进行干净环境验证、
-使用文档整理和交付；如验收发现需要单独修正的问题，再增加第 6 轮。
-每轮均记录实际改动与验证结果，最终验收完成后再创建 final tag。
+版本为 0.5.0，最终交付使用 final 标签。全新复现：
+
+    git clone https://github.com/zjsu957/phase_cli.git phase_cli-final
+    cd phase_cli-final
+    git checkout final
+    npm.cmd ci
+    npm.cmd run check
+    npm.cmd run smoke:dist
+    npm.cmd start
+
+课程具体截止时间未包含在 lab 文件中，提交是否按时须以课程通知为准。
+当前完成五轮；后续如发现实际问题，可继续第六轮修复并记录，更新最终标签需另行处理。
 
 架构方案、实现约定、协作记录及质量保证见 [doc/README.md](doc/README.md)。

@@ -2,6 +2,8 @@
 
 本记录对应 phase_cli_1.md 的 Phase 1 范围。功能验收与最终交付分开记录，
 没有把已编写但未执行的测试记为通过。
+本页保留第四轮执行结果；第五轮更新、最终逐项复核和环境验证见
+[最终复核报告](final-review.md)。
 
 ## 自动验收入口
 
@@ -30,7 +32,7 @@ CliProcess.test.ts 使用真实 Node 子进程和 src/main.ts 入口，
 | init | 默认/指定尺寸、替换文档、重置路径和历史、非法参数不修改状态 | Editor、Persistence、进程验收 |
 | read | 无需 init、层级/样式/文字读入、缺 id 警告、失败原子性 | SvgCodec、Persistence、进程验收 |
 | save | UTF-8 SVG、显式/默认路径、保存屏障、失败保留文件/路径/历史 | Persistence、进程验收 |
-| canvas | 查询不进历史，修改尺寸建立历史屏障 | Editor、进程验收 |
+| canvas | 查询不进历史，修改尺寸建立历史屏障；第五轮补齐仅修改宽度 | Editor、进程验收、第五轮编译入口检查 |
 | create | 六种内置图形、可选样式、嵌套 in、未知类型错误 | Editor、Composite、CommandSyntax、进程验收 |
 | delete | 删除整棵子树，撤销恢复 id、原父级及顺序 | Composite、HistorySequence、进程验收 |
 | move | 浮点增量、容器递归移动、溢出失败原子性 | Editor、Composite、HistorySequence、进程验收 |
@@ -88,7 +90,8 @@ AST 检查有明确边界：它验证声明的模块依赖、封装及已列出�
 - 外部 path、CSS style、tspan、百分比几何等明确报不支持，未静默删除。
 - 当前命令历史使用完整快照，适合 lab 规模；没有进行大型文档性能承诺。
 - 浏览器检查仅覆盖下面记录的流程图，不扩展为所有外部 SVG 的渲染保真承诺。
-- 第五轮继续干净环境复现、使用说明核对、远程与 final tag 交付。
+- 第四轮结束时保留的交付事项为第五轮干净环境复现、使用说明核对、远程与 final tag。
+  第五轮的执行结果单独记录在最终复核报告。
   需求文档未给出具体截止日期，最终 tag 必须在课程实际截止时间前完成。
 
 ## 本轮实际执行结果
