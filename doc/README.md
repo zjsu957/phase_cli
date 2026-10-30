@@ -2,10 +2,24 @@
 
 ## 当前里程碑
 
-2026-10-29：第二版在第一版上补齐 SVG 文件读写与往返验证。
+2026-10-30：第三版修复输入边界，统一命令语法与帮助信息。
 当前完成文档初始化/尺寸修改、六种图形、全部编辑/显示命令、撤销重做、
 SVG 导入导出、自动补 id、文件路径与文档命令历史屏障。
 最终交付仍需确认远程推送、截止日期和 final tag。
+
+### 迭代安排
+
+| 轮次 | 目标 | 状态 |
+|---|---|---|
+| 第 1 轮 | CLI、领域模型、Command/Composite 与撤销重做 | 已提交 f0bf527 |
+| 第 2 轮 | SVG 导入导出、补 id、文件原子保存与路径管理 | 已提交 7b51872，已核实远程存在 |
+| 第 3 轮 | 数值/XML/引号边界、命令定义与帮助一致性 | 本轮，独立提交 |
+| 第 4 轮 | 对照 lab 完整验收、架构依赖检查与发现问题的修复 | 计划 |
+| 第 5 轮 | 干净环境复现、使用/提交文档、远程与最终版本交付 | 计划 |
+| 第 6 轮（如需） | 解决验收或用户试用暴露的额外问题并复验 | 按实际问题决定 |
+
+轮次按真实问题与可验证成果划分，不为增加次数拆分空提交。
+本轮不提前标记后续工作完成，也不创建 final tag。
 
 ## 架构方案
 
@@ -13,13 +27,13 @@ SVG 导入导出、自动补 id、文件路径与文档命令历史屏障。
 
 | 目录/入口 | 职责 |
 |---|---|
-| src/domain | 图形封装、几何校验、Composite 树、全局 id 与父子关系、领域错误 |
+| src/domain | 图形封装、几何/XML 值校验、Composite 树、全局 id 与父子关系、领域错误 |
 | src/application | Editor 用例、历史屏障、命令执行历史、面向文本的展示 |
 | src/application/commands | EditCommand 接口、SnapshotCommand 和每条具体编辑命令 |
 | src/application/ports | DocumentStore 接口，定义文档读写用例所需的能力 |
 | src/infrastructure/files | NodeDocumentStore，隔离 Node 文件系统及临时文件原子替换 |
 | src/infrastructure/svg | SvgParser / SvgSerializer，隔离 XML 解析与序列化 |
-| src/cli | 分词、参数检查、命令路由、交互终端与脚本输入 |
+| src/cli | 保留引号信息的分词、CommandDefinition 统一语法/参数检查/动作、命令路由、终端与脚本输入 |
 | src/main.ts | 启动并组装 REPL 与标准输入输出 |
 | tests | 分词、命令、树结构、历史、失败原子性及流输入的验证 |
 | examples | 可回放的 lab 流程图命令序列 |
@@ -44,14 +58,18 @@ SVG 导入导出、自动补 id、文件路径与文档命令历史屏障。
    第二版的 SvgSerializer 也实现 ShapeVisitor，生成 XML 节点。
 5. **图形工厂**：ShapeFactory 用 ShapeDefinition 同时描述 CLI 参数和 SVG 几何属性，
    让创建与导入共用唯一的类型注册；CLI 和 XML 解析器都不依赖具体图形类。
+   第三版还由这份定义生成具体创建语法，usage 与 help 不再分别手写类型参数。
 6. **端口与适配器**：Editor 只依赖 DocumentStore 接口；
    NodeDocumentStore 是具体适配器，由 main.ts 注入。
    LoadedDocument 封装已经完成校验的文档和警告，不在解析过程中修改 Editor。
+7. **命令描述**：CommandDefinition 将命令名、语法、参数数量和处理行为放在一起，
+   CommandRouter 只维护一张定义表；help 与执行读取同一份定义。
+   这属于 CLI 适配器内的重构，实际编辑仍交给 EditCommand/CommandHistory。
 
 允许按名字分派的两处及待重构事项：
 
-- cli/CommandRouter：命令名 → 处理方法。未来可拆为可注册命令描述器，
-  合并当前的语法描述与处理函数注册，减少同步维护。
+- cli/CommandRouter：命令名 → CommandDefinition。第三版已完成描述和处理逻辑合并，
+  仍保留内置命令表；未来可将表的组装提取为可注册提供者，列为待重构项。
 - domain/ShapeFactory：图形类型名 → 构造函数。后续插件阶段改为 ShapeProvider 注册。
 
 其余图形行为均通过多态、统一树遍历或属性集合处理；不按 tag 分派。
@@ -91,6 +109,8 @@ XML 库仅在 infrastructure/svg 使用。
   canvas 必须无参数或同时给出宽高。画布尺寸为有限正数。
 - 数值必须有限，位置允许负数和浮点；宽高/半径/描边宽度允许零，不允许负数。
   scale factor 必须为正，缩放位置与尺寸，不缩放 stroke-width。
+  第三版限定十进制/科学计数法，拒绝 JavaScript Number 会额外接受的
+  十六进制、二进制和八进制。CLI 和 SVG 导入共用 NumericValue。
 - id 大小写敏感、非空、不能含空白；所有命令按全局 id 寻址。
 - 不自动写入 fill/stroke。set g 的样式保留在容器上，遵循 SVG 继承语义，
   不覆盖后代已有样式。move/scale 则递归改变后代几何值，不生成 transform。
@@ -110,6 +130,12 @@ XML 库仅在 infrastructure/svg 使用。
   canvas 查询和 tree/show/help 不影响历史。
 - 空行和首个非空白字符为 # 的行忽略；行内 # 保留为颜色/文本。
   双引号支持空文本，以及引号内的反斜线/引号转义。
+  第三版要求引号包裹整个参数，参数间空白分隔，不再接受隐式片段拼接。
+  CommandToken 封装文本及是否带引号，避免将文字 "in" 误认为父容器子句。
+  create 末尾缺少目标的 in 报 usage；文字或可选值恰好是 in 时应使用双引号。
+- XmlValue 在 id、文字和展示属性写入时校验 XML 1.0 字符合法性；
+  导入时也检查原始 XML 与解析后的模型值，避免数值字符引用绕过校验。
+  合法 emoji 使用成对代理项，正常保留；孤立代理项与非法控制字符被拒绝。
 - 交互模式显示 svg>；管道模式仅输出结果。Ctrl+C/EOF 结束，无额外 exit 命令。
 - 成功反馈以操作摘要为准，undo/redo 分别输出 undone/redone 加原操作摘要。
   error 输出统一为单行。错误文本按 lab 已给规则匹配，其余错误说明具体原因。
@@ -183,6 +209,32 @@ XML 库仅在 infrastructure/svg 使用。
    检查为空后关联 origin。推送先遇到凭据缺失，随后遇到 github.com:443 连接失败；
    未把本地提交误记为已经成功上传。
 
+### 第三版
+
+1. 用户要求按五至六轮迭代完成。本轮选择已有功能的输入边界与架构债务，
+   下一轮进行完整验收，第五轮准备交付，若暴露额外问题再决定第六轮。
+2. 用第二版编译代码复现：create rect r 0x10 0 2 3 会创建 x=16 的图形，
+   scale r 0b10 也会成功；外部 SVG x="0x10" 同样被转换。
+   原因是 NumericValue 直接调用 Number；改为先检查 SVG 十进制语法再转换。
+3. 复现 text 中的非法控制字符能创建成功，坏字符实体 &#0; 也能读入，
+   到保存时才失败。新增 XmlValue，将字符校验从序列化器提前到模型字段写入，
+   序列化仍复用同一校验作为边界保障。
+4. 在修复前新增边界回归测试，针对输入/XML/分词的 26 项测试中 18 项失败；
+   失败包括接受非十进制、非法 XML 值及隐式引号拼接，确认测试确实能捕获问题。
+5. 重构 CommandRouter，移除独立 usages/handlers 两张表，新增同名文件中的
+   CommandDefinition，统一语法、参数数量校验和执行行为。
+   具体 create 的 usage/help 则由 ShapeDefinition 生成，经 Editor 提供给 CLI，
+   没有新增 CLI 到图形工厂的直接依赖，也没有增加按类型分派的位置。
+6. 测试发现 create rect r 0 0 1 1 in 会将缺目标的关键字误当作 fill。
+   修正尾缀检查，保留 CommandToken 的引号信息，让 "in" 文字与 in 子句可区分。
+   同时拒绝 "hello"suffix 等片段拼接，并验证失败时文档与 redo 不变。
+7. 本轮直接查询 GitHub 的 refs/heads/master，已返回第二版完整提交
+   7b51872079cd10dcc5078e0fc76fc40a9c9fdf5e。更新远程状态，保留第二版当时
+   网络失败的历史事实，不将该记录改写为当时已经推送成功。
+8. 修复后执行 npm run check：8 个测试文件的 153 项测试通过，类型检查和构建通过。
+   回放 round3-validation.txt 得到四条预期错误，错误后 redo、tree、show 正常；
+   在隔离目录回放原流程图，成功保存并读回 8 个元素。
+
 ## 一致性自查
 
 ### 模块划分
@@ -192,6 +244,8 @@ main.ts 只做启动组装，测试使用测试框架回调，不作为领域行
 第二版按第一版预留的方向新增 application/ports、infrastructure/files、
 infrastructure/svg；新增 ShapeDefinition 和 SvgPresentation 用于复用构造/导入规则。
 以上新增目录和类型已同步修订架构图与模块说明。
+第三版增加 cli/CommandDefinition、cli/CommandToken 和 domain/XmlValue；
+均为一类一文件。原有端口方向和图形行为多态保持一致，架构图同步更新。
 
 ### 依赖方向
 
@@ -202,6 +256,8 @@ infrastructure/svg；新增 ShapeDefinition 和 SvgPresentation 用于复用构�
 - CLI 的具体编辑入口经 Editor.edit 执行；只额外引用允许的领域错误/数值校验。
 - 树显示使用 Visitor；容器判定通过 asContainer 多态。
 - 命令分发、图形工厂两处名字分派保留，已列为重构项。
+- 第三版 help 通过应用层获得图形语法，CLI 仍只直接引用允许的领域错误/数值校验。
+  XmlValue 为纯领域值校验，不引入 XML 库或文件系统依赖。
 
 ## 质量保证手段
 
@@ -209,6 +265,7 @@ infrastructure/svg；新增 ShapeDefinition 和 SvgPresentation 用于复用构�
 - npm test：验证分词、六种图形的创建/编辑、Composite 递归、结构顺序、
   撤销重做、屏障及失败后保留 redo。包含子孙处理过程中数值溢出的原子性场景。
 - npm run build：编译为 dist/main.js，检查实际 Node 入口。
+- npm run check：依次执行类型检查、测试、构建，任一步失败则终止。
 - examples/flowchart.txt：回放 lab 6.1 版本 A，包含实际保存、历史屏障和读回。
 - 流式 REPL 测试：覆盖 CRLF、中文、错误后继续、EOF 前最后一行无换行。
 - 第一版：4 个测试文件、50 项测试全部通过；类型检查与构建通过；
@@ -218,6 +275,13 @@ infrastructure/svg；新增 ShapeDefinition 和 SvgPresentation 用于复用构�
   实际编译入口成功导出 flowchart.svg 并读回 8 个元素。
 - 自动浏览器视觉检查未完成：Computer Use 原生管道不可用，重试及重置后仍失败。
   未把文件成功导出和 XML 往返等同于已经完成浏览器视觉验证。
+- 第三版新增 tests/InputValidation.test.ts、tests/CommandSyntax.test.ts，
+  验证错误输入保留文档/redo、合法科学计数法/emoji、usage 与 help 一致。
+  examples/round3-validation.txt 为可手工回放的边界示例，四条错误为预期输出。
+- 第三版结果：8 个测试文件、153 项测试全部通过；类型检查与构建通过。
+  两份脚本均通过编译入口回放；流程图导出放在 .npm-cache 下的独立 QA 目录，
+  避免覆盖用户现有的 flowchart.svg。
 
 远程已配置为 https://github.com/zjsu957/phase_cli.git，
-仍需在网络和身份验证恢复后成功 push；final tag 只在最终交付确认时创建。
+第三轮开始时已核实远程存在第一、二版。后续提交需分别推送验证；
+final tag 只在最终验收完成时创建。

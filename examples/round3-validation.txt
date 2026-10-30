@@ -1,0 +1,20 @@
+# Round 3: the four error lines below are intentional.
+init 400 200
+create g scene
+create rect r 10 20 100 50 #4a90d9 in scene
+move r 30 0
+undo
+# Invalid geometry must keep both the document and redo history.
+move r 0x10 0
+redo
+tree r
+# Missing a parent after in must not create a root-level rectangle.
+create rect wrong 0 0 20 20 in
+tree scene
+# Quoted text and the in keyword remain distinct.
+create text label +.5 2.5e1 "in" in scene
+set label text "broken"suffix
+show label
+# Type-specific usage comes from the same schema used for help.
+create circle c 0 0
+help

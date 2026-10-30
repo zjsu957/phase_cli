@@ -78,7 +78,7 @@ describe('SVG file commands and history', () => {
     expect(cli.execute('undo')).toBe('error: nothing to undo');
   });
 
-  it.each(['missing', 'malformed', 'duplicate', 'unsupported'])(
+  it.each(['missing', 'malformed', 'duplicate', 'unsupported', 'nondecimal', 'invalidText', 'invalidRoot'])(
     'preserves the document, remembered path and redo on failed read: %s', kind => {
       const original = join(directory, 'original.svg');
       const invalid = join(directory, 'invalid.svg');
@@ -86,6 +86,9 @@ describe('SVG file commands and history', () => {
         ['malformed', '<svg><rect></svg>'],
         ['duplicate', '<svg><rect id="x"/><g id="x"/></svg>'],
         ['unsupported', '<svg><rect/><path/></svg>'],
+        ['nondecimal', '<svg><rect x="0x10"/></svg>'],
+        ['invalidText', '<svg><text id="t">&#0;</text></svg>'],
+        ['invalidRoot', '<svg id="bad&#1;id"/>'],
       ]);
       if (contents.has(kind)) writeFileSync(invalid, contents.get(kind)!, 'utf8');
       cli.execute('init');
@@ -130,12 +133,12 @@ describe('SVG file commands and history', () => {
     expect(cli.execute('save "' + path + '"')).toBe('error: cannot write file: ' + path);
   });
 
-  it('rejects non-XML text before touching an existing destination', () => {
+  it('rejects non-XML edits before history changes, and leaves existing files untouched', () => {
     const path = join(directory, 'original.svg');
     writeFileSync(path, 'original bytes', 'utf8');
     cli.execute('init');
-    cli.execute('create text t 0 0 "bad\u0000text"');
-    expect(cli.execute('save "' + path + '"')).toBe('error: invalid XML character in document');
+    cli.execute('create text t 0 0 "good"');
+    expect(cli.execute('set t text "bad\u0000text"')).toBe('error: invalid XML character in document');
     expect(readFileSync(path, 'utf8')).toBe('original bytes');
     cli.execute('undo');
     expect(cli.execute('tree')).toBe('svg (800x600)');

@@ -10,132 +10,85 @@ import { ScaleCommand } from '../application/commands/ScaleCommand.js';
 import { SetCommand } from '../application/commands/SetCommand.js';
 import { UngroupCommand } from '../application/commands/UngroupCommand.js';
 import { EditorError } from '../domain/EditorError.js';
-import { Arguments } from './Arguments.js';
+import type { Arguments } from './Arguments.js';
+import { CommandDefinition } from './CommandDefinition.js';
 import { Tokenizer } from './Tokenizer.js';
 
 export class CommandRouter {
   private readonly tokenizer = new Tokenizer();
-  // Phase 1's single command-name dispatch point; registry extraction is planned.
-  private readonly handlers: ReadonlyMap<string, (args: readonly string[]) => string>;
-  private readonly usages: ReadonlyMap<string, string>;
+  // The only command-name dispatch. Provider-based registration remains future work.
+  private readonly definitions: ReadonlyMap<string, CommandDefinition>;
 
   constructor(private readonly editor = new Editor()) {
-    this.usages = new Map([
-      ['init', 'init [w] [h]'],
-      ['read', 'read <file.svg>'],
-      ['save', 'save [file.svg]'],
-      ['canvas', 'canvas [w] [h]'],
-      ['create', 'create <rect|circle|ellipse|line|text|g> <id> [params...] [in <containerId>]'],
-      ['delete', 'delete <id>'],
-      ['move', 'move <id> <dx> <dy>'],
-      ['scale', 'scale <id> <factor>'],
-      ['set', 'set <id> <attr> <value>'],
-      ['group', 'group <newGid> <id1> <id2>...'],
-      ['ungroup', 'ungroup <gid>'],
-      ['addto', 'addto <gid> <id>'],
-      ['front', 'front <id>'],
-      ['back', 'back <id>'],
-      ['tree', 'tree [id]'],
-      ['show', 'show <id>'],
-      ['help', 'help'],
-      ['undo', 'undo'],
-      ['redo', 'redo'],
-    ]);
-    this.handlers = new Map([
-      ['init', args => this.init(args)],
-      ['read', args => { const a = this.args('read', args).count(1); return this.editor.read(a.text(0)); }],
-      ['save', args => { this.args('save', args).count(0, 1); return this.editor.save(args[0]); }],
-      ['canvas', args => this.canvas(args)],
-      ['create', args => this.create(args)],
-      ['delete', args => {
-        const a = this.args('delete', args).count(1);
-        return this.editor.edit(new DeleteCommand(a.text(0)));
-      }],
-      ['move', args => {
-        const a = this.args('move', args).count(3);
-        return this.editor.edit(new MoveCommand(a.text(0), a.number(1), a.number(2)));
-      }],
-      ['scale', args => {
-        const a = this.args('scale', args).count(2);
-        return this.editor.edit(new ScaleCommand(a.text(0), a.number(1)));
-      }],
-      ['set', args => {
-        const a = this.args('set', args).count(3);
-        return this.editor.edit(new SetCommand(a.text(0), a.text(1), a.text(2)));
-      }],
-      ['group', args => {
-        const a = this.args('group', args).count(2, Number.POSITIVE_INFINITY);
-        return this.editor.edit(new GroupCommand(a.text(0), args.slice(1)));
-      }],
-      ['ungroup', args => {
-        const a = this.args('ungroup', args).count(1);
-        return this.editor.edit(new UngroupCommand(a.text(0)));
-      }],
-      ['addto', args => {
-        const a = this.args('addto', args).count(2);
-        return this.editor.edit(new AddToCommand(a.text(0), a.text(1)));
-      }],
-      ['front', args => {
-        const a = this.args('front', args).count(1);
-        return this.editor.edit(new FrontCommand(a.text(0)));
-      }],
-      ['back', args => {
-        const a = this.args('back', args).count(1);
-        return this.editor.edit(new BackCommand(a.text(0)));
-      }],
-      ['tree', args => { this.args('tree', args).count(0, 1); return this.editor.tree(args[0]); }],
-      ['show', args => { const a = this.args('show', args).count(1); return this.editor.show(a.text(0)); }],
-      ['help', args => { this.args('help', args).count(0); return this.help(); }],
-      ['undo', args => { this.args('undo', args).count(0); return this.editor.undo(); }],
-      ['redo', args => { this.args('redo', args).count(0); return this.editor.redo(); }],
-    ]);
+    const definitions = [
+      new CommandDefinition('init', '[w] [h]', 0, 2, a =>
+        this.editor.init(a.length >= 1 ? a.number(0) : 800, a.length >= 2 ? a.number(1) : 600)),
+      new CommandDefinition('read', '<file.svg>', 1, 1, a => this.editor.read(a.text(0))),
+      new CommandDefinition('save', '[file.svg]', 0, 1, a => this.editor.save(a.all[0])),
+      new CommandDefinition('canvas', '[w] [h]', 0, 2, a => {
+        if (a.length === 0) return this.editor.canvas();
+        a.count(2);
+        return this.editor.canvas(a.number(0), a.number(1));
+      }),
+      new CommandDefinition('create', '<type> <id> [params...] [in <containerId>]', 2, Infinity,
+        a => this.create(a)),
+      new CommandDefinition('delete', '<id>', 1, 1,
+        a => this.editor.edit(new DeleteCommand(a.text(0)))),
+      new CommandDefinition('move', '<id> <dx> <dy>', 3, 3,
+        a => this.editor.edit(new MoveCommand(a.text(0), a.number(1), a.number(2)))),
+      new CommandDefinition('scale', '<id> <factor>', 2, 2,
+        a => this.editor.edit(new ScaleCommand(a.text(0), a.number(1)))),
+      new CommandDefinition('set', '<id> <attr> <value>', 3, 3,
+        a => this.editor.edit(new SetCommand(a.text(0), a.text(1), a.text(2)))),
+      new CommandDefinition('group', '<newGid> <id1> <id2>...', 2, Infinity,
+        a => this.editor.edit(new GroupCommand(a.text(0), a.all.slice(1)))),
+      new CommandDefinition('ungroup', '<gid>', 1, 1,
+        a => this.editor.edit(new UngroupCommand(a.text(0)))),
+      new CommandDefinition('addto', '<gid> <id>', 2, 2,
+        a => this.editor.edit(new AddToCommand(a.text(0), a.text(1)))),
+      new CommandDefinition('front', '<id>', 1, 1,
+        a => this.editor.edit(new FrontCommand(a.text(0)))),
+      new CommandDefinition('back', '<id>', 1, 1,
+        a => this.editor.edit(new BackCommand(a.text(0)))),
+      new CommandDefinition('tree', '[id]', 0, 1, a => this.editor.tree(a.all[0])),
+      new CommandDefinition('show', '<id>', 1, 1, a => this.editor.show(a.text(0))),
+      new CommandDefinition('help', '', 0, 0, () => this.help()),
+      new CommandDefinition('undo', '', 0, 0, () => this.editor.undo()),
+      new CommandDefinition('redo', '', 0, 0, () => this.editor.redo()),
+    ];
+    this.definitions = new Map(definitions.map(definition => [definition.name, definition]));
   }
   execute(line: string): string | undefined {
     try {
-      const [name, ...args] = this.tokenizer.tokenize(line);
-      if (name === undefined) return undefined;
-      const handler = this.handlers.get(name);
-      if (!handler) throw new EditorError('unknown command: ' + name);
-      return handler(args);
+      const [commandToken, ...args] = this.tokenizer.scan(line);
+      if (commandToken === undefined) return undefined;
+      const name = commandToken.value;
+      const definition = this.definitions.get(name);
+      if (!definition) throw new EditorError('unknown command: ' + name);
+      return definition.execute(args);
     } catch (error) {
       if (error instanceof EditorError) return 'error: ' + error.message.replace(/[\r\n]+/gu, ' ');
       throw error;
     }
   }
-  private args(name: string, values: readonly string[]): Arguments {
-    return new Arguments(values, this.usages.get(name)!);
-  }
-  private init(args: readonly string[]): string {
-    const a = this.args('init', args).count(0, 2);
-    return this.editor.init(args.length >= 1 ? a.number(0) : 800, args.length >= 2 ? a.number(1) : 600);
-  }
-  private canvas(args: readonly string[]): string {
-    const a = this.args('canvas', args);
-    if (args.length === 0) return this.editor.canvas();
-    a.count(2);
-    return this.editor.canvas(a.number(0), a.number(1));
-  }
-  private create(args: readonly string[]): string {
-    this.args('create', args).count(2, Number.POSITIVE_INFINITY);
-    let values = [...args];
+  private create(args: Arguments): string {
+    let values = args.all;
     let parentId: string | undefined;
-    if (values.length >= 4 && values.at(-2) === 'in') {
+    if (values.length >= 4 && values.at(-2) === 'in' && !args.isQuoted(-2)) {
       parentId = values.at(-1)!;
       values = values.slice(0, -2);
+    } else if (values.length > 2 && values.at(-1) === 'in' && !args.isQuoted(-1)) {
+      args.failUsage();
     }
     return this.editor.edit(new CreateCommand(values[0]!, values[1]!, values.slice(2), parentId));
   }
   private help(): string {
     return [
-      ...this.usages.values(),
+      ...[...this.definitions.values()].map(definition => definition.syntax),
       '',
-      'create rect <id> <x> <y> <w> <h> [fill] [in <containerId>]',
-      'create circle <id> <cx> <cy> <r> [fill] [in <containerId>]',
-      'create ellipse <id> <cx> <cy> <rx> <ry> [fill] [in <containerId>]',
-      'create line <id> <x1> <y1> <x2> <y2> [stroke] [in <containerId>]',
-      'create text <id> <x> <y> "content" [in <containerId>]',
-      'create g <id> [in <containerId>]',
+      ...this.editor.creationSyntax,
       'set: fill | stroke | stroke-width | geometry attributes | text (text only)',
+      'Numbers: decimal or exponent notation; quoted arguments must be separated by whitespace.',
       'Lines beginning with # are comments. Ctrl+C or EOF closes the CLI.',
     ].join('\n');
   }

@@ -9,7 +9,7 @@ export class Repl {
     const reader = createInterface({ input, output, terminal: interactive });
     reader.setPrompt('svg> ');
     if (interactive) {
-      output.write("svg-editor 0.2 — type 'help' for commands\n");
+      output.write("svg-editor 0.3 — type 'help' for commands\n");
       reader.prompt();
     }
     reader.on('line', line => {

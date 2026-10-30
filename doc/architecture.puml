@@ -1,10 +1,10 @@
 @startuml
-title SVG Editor — 第二版依赖方向
+title SVG Editor — 第三版依赖方向
 skinparam componentStyle rectangle
 component "main.ts\n对象组装" as Main
 package "cli/" {
   component "Repl\n终端与流 IO" as Repl
-  component "Tokenizer / Arguments\nCommandRouter" as Cli
+  component "Tokenizer / CommandToken / Arguments\nCommandRouter / CommandDefinition" as Cli
 }
 package "application/" {
   component "Editor / CommandHistory" as App
@@ -17,7 +17,7 @@ package "domain/" {
   component "SvgDocument\nShape / GeometryShape\nRect / Circle / Ellipse / Line / Text / Group" as Model
   component "ShapeFactory / ShapeDefinition" as Factory
   component "ShapeVisitor 接口" as Visitor
-  component "EditorError / NumericValue" as Values
+  component "EditorError / NumericValue / XmlValue" as Values
 }
 package "infrastructure/" {
   component "files/NodeDocumentStore\n临时文件 + 原子替换" as Files
@@ -34,6 +34,7 @@ Cli --> Values
 App --> Commands
 App --> Presenter
 App --> Model
+App --> Factory
 App --> Store
 App --> Loaded
 Files ..|> Store

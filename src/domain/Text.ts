@@ -1,12 +1,13 @@
 import { GeometryShape } from './GeometryShape.js';
 import type { ShapeVisitor } from './ShapeVisitor.js';
+import { XmlValue } from './XmlValue.js';
 
 export class Text extends GeometryShape {
   private content: string;
 
   constructor(id: string, x: number, y: number, content: string) {
     super(id, { x, y }, [['x', 'y']]);
-    this.content = content;
+    this.content = XmlValue.validate(content);
   }
   override get tag(): string { return 'text'; }
   override get attributes(): ReadonlyMap<string, string> {
@@ -14,7 +15,7 @@ export class Text extends GeometryShape {
   }
   protected override setOwnAttribute(attr: string, value: string): boolean {
     if (attr !== 'text') return super.setOwnAttribute(attr, value);
-    this.content = value;
+    this.content = XmlValue.validate(value);
     return true;
   }
   override clone(): Text {

@@ -1,7 +1,8 @@
-# SVG Editor · 第二版 SVG 文件读写
+# SVG Editor · 第三版 输入校验与命令定义
 
 TypeScript 面向对象实现的 Lab1 Phase 1 SVG 编辑器。
-第二版已支持从 CLI 编辑、保存 SVG、在浏览器预览，再读回继续编辑。
+支持从 CLI 编辑、保存 SVG、在浏览器预览，再读回继续编辑。
+第三版重点修复数值、XML 字符及命令语法边界，并统一帮助信息与参数校验。
 
 ## 启动与检查
 
@@ -12,14 +13,32 @@ TypeScript 面向对象实现的 Lab1 Phase 1 SVG 编辑器。
     npm.cmd run typecheck
     npm.cmd test
     npm.cmd run build
+    npm.cmd run check
     node dist/main.js
 
 交互模式显示 svg>，Ctrl+C 或 EOF 退出；脚本模式不输出提示符。
-升级代码后先退出旧 CLI，再执行 npm.cmd run cli，确保加载第二版代码。
+升级代码后先退出旧 CLI，再执行 npm.cmd run cli，确保加载新版本代码。
+npm.cmd run check 会依次执行类型检查、测试和构建，任一步失败就停止。
 
     Get-Content -LiteralPath .\examples\flowchart.txt -Encoding UTF8 | npm.cmd run cli
 
 脚本中 save 后的 undo 预期报错，用于演示文档命令的撤销屏障。
+
+## 第三版的输入规则
+
+- 数值使用十进制或科学计数法，例如 -1.5、+.5、1e2；拒绝 0x10、
+  0b10、NaN、Infinity。SVG 导入时还允许 px 单位。
+- 带空格的参数使用完整双引号，前后与其他参数用空白分隔；
+  "hello"suffix 这类拼接写法会报错。引号内支持转义引号和反斜线。
+- create 的 in 子句必须给出容器名；文字内容恰好为 in 时写为 "in"。
+- 文字、id、样式中的非法 XML 控制字符会在编辑或导入时拒绝，
+  避免等到 save 时才发现文档无法导出。中文、emoji 和合法特殊字符仍然支持。
+- 参数缺失或过多时显示 usage；图形类型的具体语法与 help 共用定义。
+- 失败命令保留文档和撤销重做历史。
+
+可回放以下脚本观察这些规则；其中四条 error 是预期结果：
+
+    Get-Content -LiteralPath .\examples\round3-validation.txt -Encoding UTF8 | npm.cmd run cli
 
 ## 尝试一次编辑
 
@@ -74,7 +93,13 @@ CLI 的 set 白名单仍遵循 lab，不额外开放 transform/font-size 等属�
 - 已实现：init、read、save、canvas、六种图形的 create（含 in）、delete、move、scale、
   set、group、ungroup、addto、front、back、tree、show、help、undo、redo。
 - box 和插件机制属于后续阶段，不在本阶段范围内。
-- Git 提交保存在本地；远程地址已关联 GitHub，
-  是否成功上传应以 git push 的实际输出为准。
+- 第一、二版已核实上传至 [GitHub](https://github.com/zjsu957/phase_cli)；
+  后续迭代各自独立提交，是否已同步以 git push 的实际输出为准。
+
+## 后续迭代
+
+当前为第 3 轮。第 4 轮进行完整需求验收与架构检查，第 5 轮进行干净环境验证、
+使用文档整理和交付；如验收发现需要单独修正的问题，再增加第 6 轮。
+每轮均记录实际改动与验证结果，最终验收完成后再创建 final tag。
 
 架构方案、实现约定、协作记录及质量保证见 [doc/README.md](doc/README.md)。

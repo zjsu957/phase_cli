@@ -1,6 +1,7 @@
 import { EditorError } from './EditorError.js';
 import { NumericValue } from './NumericValue.js';
 import { SvgPresentation } from './SvgPresentation.js';
+import { XmlValue } from './XmlValue.js';
 import type { ShapeVisitor } from './ShapeVisitor.js';
 import type { Group } from './Group.js';
 
@@ -10,7 +11,7 @@ export abstract class Shape {
 
   protected constructor(id: string) {
     if (!id || /\s/u.test(id)) throw new EditorError('id must be non-empty and contain no whitespace');
-    this.shapeId = id;
+    this.shapeId = XmlValue.validate(id);
   }
   get id(): string { return this.shapeId; }
   abstract get tag(): string;

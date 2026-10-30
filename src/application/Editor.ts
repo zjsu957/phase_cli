@@ -4,6 +4,7 @@ import { CommandHistory } from './CommandHistory.js';
 import { DocumentPresenter } from './DocumentPresenter.js';
 import type { EditCommand } from './commands/EditCommand.js';
 import type { DocumentStore } from './ports/DocumentStore.js';
+import { ShapeFactory } from '../domain/ShapeFactory.js';
 
 export class Editor {
   private document: SvgDocument | undefined;
@@ -12,6 +13,7 @@ export class Editor {
   private currentPath: string | undefined;
 
   constructor(private readonly store?: DocumentStore) {}
+  get creationSyntax(): readonly string[] { return new ShapeFactory().creationSyntax; }
 
   init(width = 800, height = 600): string {
     const next = new SvgDocument(width, height);

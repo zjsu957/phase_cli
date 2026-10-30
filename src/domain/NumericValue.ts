@@ -6,8 +6,11 @@ export class NumericValue {
     return Object.is(value, -0) ? 0 : value;
   }
   static parse(value: string, name: string): number {
-    if (value.trim() === '') throw new EditorError(name + ' must be a finite number');
-    return this.finite(Number(value), name);
+    const decimal = value.trim();
+    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u.test(decimal)) {
+      throw new EditorError(name + ' must be a finite number');
+    }
+    return this.finite(Number(decimal), name);
   }
   static nonnegative(value: number, name: string): number {
     this.finite(value, name);

@@ -31,7 +31,10 @@ export class ShapeFactory {
     return definition;
   }
   create(type: string, id: string, params: readonly string[]): Shape {
-    return this.definition(type).create(id, params);
+    return this.definition(type).create(type, id, params);
+  }
+  get creationSyntax(): readonly string[] {
+    return [...this.definitions].map(([type, definition]) => definition.syntax(type));
   }
   fromSvg(type: string, id: string, attributes: ReadonlyMap<string, string>, text: string): Shape {
     return this.definition(type).fromSvg(id, attributes, text);

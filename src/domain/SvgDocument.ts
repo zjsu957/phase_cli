@@ -3,6 +3,7 @@ import { Group } from './Group.js';
 import { NumericValue } from './NumericValue.js';
 import type { Shape } from './Shape.js';
 import { SvgPresentation } from './SvgPresentation.js';
+import { XmlValue } from './XmlValue.js';
 
 export class SvgDocument {
   private canvasWidth: number;
@@ -26,7 +27,7 @@ export class SvgDocument {
   setRootId(id: string): void {
     if (!id || /\s/u.test(id)) throw new EditorError('id must be non-empty and contain no whitespace');
     this.ensureNewId(id);
-    this.svgRootId = id;
+    this.svgRootId = XmlValue.validate(id);
   }
   setViewBox(value: string): void {
     const parts = value.trim().split(/[\s,]+/u);

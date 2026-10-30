@@ -5,12 +5,14 @@ import { NumericValue } from '../../domain/NumericValue.js';
 import type { Shape } from '../../domain/Shape.js';
 import { ShapeFactory } from '../../domain/ShapeFactory.js';
 import { SvgDocument } from '../../domain/SvgDocument.js';
+import { XmlValue } from '../../domain/XmlValue.js';
 
 export class SvgParser {
   private readonly factory = new ShapeFactory();
   private readonly svgNamespace = 'http://www.w3.org/2000/svg';
 
   parse(source: string): LoadedDocument {
+    XmlValue.validate(source);
     let xml;
     try {
       xml = new DOMParser({ onError: onWarningStopParsing }).parseFromString(source, 'image/svg+xml');

@@ -1,5 +1,6 @@
 import { EditorError } from './EditorError.js';
 import { NumericValue } from './NumericValue.js';
+import { XmlValue } from './XmlValue.js';
 
 /** Presentation imported from SVG; CLI set keeps its smaller, lab-defined whitelist. */
 export class SvgPresentation {
@@ -25,6 +26,6 @@ export class SvgPresentation {
     if (name === 'stroke-width') {
       value = String(NumericValue.nonnegative(NumericValue.parse(value.replace(/px$/u, ''), name), name));
     }
-    this.values.set(name, value);
+    this.values.set(name, XmlValue.validate(value));
   }
 }

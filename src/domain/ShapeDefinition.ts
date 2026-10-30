@@ -11,11 +11,16 @@ export class ShapeDefinition {
     private readonly takesText = false,
   ) {}
 
-  create(id: string, params: readonly string[]): Shape {
+  syntax(type: string): string {
+    return ['create', type, '<id>', ...this.geometry.map(name => '<' + name + '>'),
+      ...(this.takesText ? ['"content"'] : []),
+      ...(this.optionalStyle ? ['[' + this.optionalStyle + ']'] : []),
+      '[in <containerId>]'].join(' ');
+  }
+  create(type: string, id: string, params: readonly string[]): Shape {
     const required = this.geometry.length + (this.takesText ? 1 : 0);
     if (params.length < required || params.length > required + (this.optionalStyle ? 1 : 0)) {
-      throw new EditorError('invalid create parameters: expected ' + required +
-        ' required values' + (this.optionalStyle ? ' and optional ' + this.optionalStyle : ''));
+      throw new EditorError('usage: ' + this.syntax(type));
     }
     const numbers = this.geometry.map((name, index) => NumericValue.parse(params[index]!, name));
     const shape = this.build(id, numbers, this.takesText ? params[this.geometry.length]! : '');

@@ -17,4 +17,9 @@ describe('Tokenizer', () => {
     expect(tokenizer.tokenize('  # comment')).toEqual([]);
     expect(() => tokenizer.tokenize('set t text "unfinished')).toThrow('unterminated double quote');
   });
+  it.each(['set t text "hello"tail', 'set t text pre"hello"', 'set t text "a""b"'])(
+    'rejects concatenated quote fragments rather than silently changing content: %s', line => {
+      expect(() => tokenizer.tokenize(line)).toThrow('quoted arguments must be separated by whitespace');
+    },
+  );
 });
